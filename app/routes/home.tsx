@@ -3,8 +3,8 @@ import { Welcome } from "../welcome/welcome";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "TOILEX - Your #2 Destination for #2" },
+    { name: "description", content: "The ultimate toilet experience platform. Chat, analyze, and track your bathroom adventures!" },
   ];
 }
 
