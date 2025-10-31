@@ -132,7 +132,7 @@ export default function Chat() {
               </p>
               <button
                 onClick={startSession}
-                className="bg-gradient-to-r from-yellow-600 to-amber-700 hover:from-yellow-500 hover:to-amber-600 text-white font-black py-5 px-10 rounded-lg text-2xl transition-all shadow-xl hover:shadow-2xl border-4 border-yellow-500 transform hover:scale-110"
+                className="bg-gradient-to-r from-yellow-600 to-amber-700 hover:from-yellow-500 hover:to-amber-600 active:from-yellow-500 active:to-amber-600 text-white font-black py-5 px-10 rounded-lg text-2xl transition-all shadow-xl hover:shadow-2xl active:shadow-2xl border-4 border-yellow-500 hover:scale-110 active:scale-105 touch-manipulation"
               >
                 💩 START DUMPING 💩
               </button>
