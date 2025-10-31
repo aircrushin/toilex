@@ -35,7 +35,12 @@ export default function Chat() {
 
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io("http://localhost:3001");
+    // Use environment variable or fall back to localhost for development
+    const socketUrl = typeof window !== 'undefined'
+      ? (window.ENV?.SOCKET_URL || import.meta.env.VITE_SOCKET_URL || "http://localhost:3001")
+      : "http://localhost:3001";
+
+    const newSocket = io(socketUrl);
     setSocket(newSocket);
 
     // Listen for matching events

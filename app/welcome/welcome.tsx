@@ -53,18 +53,18 @@ export function Welcome() {
             </p>
           </Link>
 
-          <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg shadow-2xl p-8 opacity-60 cursor-not-allowed border-4 border-gray-600">
-            <div className="text-7xl mb-4 text-center">📅💩</div>
-            <h2 className="text-2xl font-black text-gray-300 mb-3 text-center">
+          <Link
+            to="/tracker"
+            className="bg-gradient-to-br from-amber-900 to-yellow-700 rounded-lg shadow-2xl p-8 hover:shadow-[0_0_30px_rgba(251,191,36,0.5)] transition-all border-4 border-yellow-600 group transform hover:scale-105"
+          >
+            <div className="text-7xl mb-4 text-center animate-pulse">📅💩</div>
+            <h2 className="text-2xl font-black text-yellow-100 mb-3 text-center group-hover:text-white transition-colors">
               Poop Predictor
             </h2>
-            <p className="text-gray-400 text-center font-semibold">
+            <p className="text-yellow-200 text-center font-semibold">
               Track your logs and predict when nature calls 🔮
             </p>
-            <p className="text-sm text-yellow-500 mt-3 text-center font-black">
-              💩 COMING SOON 💩
-            </p>
-          </div>
+          </Link>
         </div>
 
         <div className="mt-12 text-center bg-yellow-800/50 rounded-lg p-6 border-2 border-yellow-600">

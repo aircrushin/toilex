@@ -61,7 +61,7 @@ io.on("connection", (socket) => {
   });
 });
 
-const port = process.env.SOCKET_PORT || 3001;
+const port = process.env.PORT || process.env.SOCKET_PORT || 3001;
 httpServer.listen(port, () => {
-  console.log(`Socket.io server listening on http://localhost:${port}`);
+  console.log(`Socket.io server listening on port ${port}`);
 });
