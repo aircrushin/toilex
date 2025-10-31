@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Route } from "./+types/tracker";
 import { TheNothing } from "../components/TheNothing";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -253,6 +254,9 @@ export default function Tracker() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-800 to-yellow-700 p-4">
       <div className="max-w-6xl mx-auto">
+        <div className="pt-4">
+          <Breadcrumbs />
+        </div>
         <div className="text-center mb-8 pt-8">
           <div className="text-7xl mb-4">📊💩⏱️</div>
           <h1 className="text-6xl font-black text-yellow-200 mb-2" style={{textShadow: '3px 3px 0 #78350f'}}>
@@ -552,15 +556,6 @@ export default function Tracker() {
               ))}
             </div>
           )}
-        </div>
-
-        <div className="mt-8 text-center">
-          <a
-            href="/"
-            className="text-yellow-200 hover:text-yellow-100 underline font-bold text-lg"
-          >
-            🚽 ← Back to Toilet HQ
-          </a>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"),
+  route("auth", "routes/auth.tsx"),
   route("chat", "routes/chat.tsx"),
   route("analyzer", "routes/analyzer.tsx"),
   route("tracker", "routes/tracker.tsx"),
@@ -15,4 +16,7 @@ export default [
   // API routes for THE NOTHING game
   route("api/game/click", "routes/api.game.click.ts"),
   route("api/game/leaderboard", "routes/api.game.leaderboard.ts"),
+
+  // API routes for tracker
+  route("api/tracker/sessions", "routes/api.tracker.sessions.ts"),
 ] satisfies RouteConfig;

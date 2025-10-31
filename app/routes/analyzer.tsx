@@ -2,6 +2,7 @@ import { useState, type JSXElementConstructor, type Key, type ReactElement, type
 import { Form, useActionData, useNavigation } from "react-router";
 import type { Route } from "./+types/analyzer";
 import OpenAI from "openai";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -209,6 +210,9 @@ export default function Analyzer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-800 to-yellow-700 p-4">
       <div className="max-w-4xl mx-auto">
+        <div className="pt-4">
+          <Breadcrumbs />
+        </div>
         <div className="text-center mb-8 pt-8">
           <div className="text-7xl mb-4">💩📊🔬</div>
           <h1 className="text-6xl font-black text-yellow-200 mb-2" style={{textShadow: '3px 3px 0 #78350f'}}>
@@ -404,15 +408,6 @@ export default function Analyzer() {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="mt-8 text-center">
-          <a
-            href="/"
-            className="text-yellow-200 hover:text-yellow-100 underline font-bold text-lg"
-          >
-            🚽 ← Back to Toilet HQ
-          </a>
         </div>
       </div>
     </div>

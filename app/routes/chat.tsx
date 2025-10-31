@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import type { Route } from "./+types/chat";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -158,6 +159,9 @@ export default function Chat() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-800 to-yellow-700 p-4">
       <div className="max-w-2xl mx-auto">
+        <div className="pt-4">
+          <Breadcrumbs />
+        </div>
         <div className="text-center mb-8 pt-8">
           <div className="text-6xl mb-3">💩🚽💬</div>
           <h1 className="text-5xl font-black text-yellow-200 mb-2" style={{textShadow: '2px 2px 0 #78350f'}}>
@@ -278,15 +282,6 @@ export default function Chat() {
               </form>
             </div>
           )}
-        </div>
-
-        <div className="mt-8 text-center">
-          <a
-            href="/"
-            className="text-yellow-200 hover:text-yellow-100 underline font-bold text-lg"
-          >
-            🚽 ← Back to Toilet HQ
-          </a>
         </div>
       </div>
     </div>
