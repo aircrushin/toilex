@@ -19,7 +19,7 @@ export function Welcome() {
         <div className="text-center mb-12">
           <div className="text-8xl mb-4">💩</div>
           <h1 className="text-7xl font-black text-yellow-200 mb-4 drop-shadow-lg" style={{textShadow: '3px 3px 0 #78350f'}}>
-            Popdher
+          Powpdr
           </h1>
           <p className="text-3xl text-yellow-100 mb-2 font-bold">
             💩 Your #2 Destination for #2 💩

@@ -1,10 +1,10 @@
-# Deployment Guide for TOILEX
+# Deployment Guide for powpdr
 
-This guide covers deploying your TOILEX app to production.
+This guide covers deploying your powpdr app to production.
 
 ## Architecture
 
-TOILEX is now **100% serverless** and can be deployed entirely on Vercel! 🎉
+powpdr is now **100% serverless** and can be deployed entirely on Vercel! 🎉
 
 The app uses:
 - React Router v7 for the frontend and API routes

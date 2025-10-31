@@ -7,7 +7,7 @@ interface BreadcrumbItem {
 }
 
 const routeConfig: Record<string, BreadcrumbItem> = {
-  "": { label: "Popdher", path: "/", emoji: "🚽" },
+  "": { label: "Powpdr", path: "/", emoji: "🚽" },
   "auth": { label: "Auth", path: "/auth", emoji: "🔐" },
   "chat": { label: "Poop-Time Chat", path: "/chat", emoji: "💬" },
   "analyzer": { label: "Poop Analyzer", path: "/analyzer", emoji: "🔬" },

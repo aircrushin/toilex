@@ -1,6 +1,6 @@
 # Supabase Integration Setup Guide
 
-This guide will help you complete the Supabase integration for Toilex.
+This guide will help you complete the Supabase integration for powpdr.
 
 ## Step 1: Setup Supabase Project
 

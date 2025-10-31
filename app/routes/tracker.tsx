@@ -38,7 +38,7 @@ export default function Tracker() {
 
   // Load sessions from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("toilex-sessions");
+    const stored = localStorage.getItem("powpdr-sessions");
     if (stored) {
       const parsed = JSON.parse(stored);
       setSessions(parsed.map((s: any) => ({
@@ -52,7 +52,7 @@ export default function Tracker() {
   // Save sessions to localStorage
   useEffect(() => {
     if (sessions.length > 0) {
-      localStorage.setItem("toilex-sessions", JSON.stringify(sessions));
+      localStorage.setItem("powpdr-sessions", JSON.stringify(sessions));
     }
   }, [sessions]);
 
@@ -242,7 +242,7 @@ export default function Tracker() {
   const clearAllSessions = () => {
     if (confirm("Delete all your precious poop data? This cannot be undone!")) {
       setSessions([]);
-      localStorage.removeItem("toilex-sessions");
+      localStorage.removeItem("powpdr-sessions");
     }
   };
 

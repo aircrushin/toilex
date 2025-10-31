@@ -52,7 +52,7 @@ npm run build
 
 ```bash
 # 构建镜像
-docker build -t toilex .
+docker build -t powpdr .
 
 # 运行容器（需要映射两个端口）
 docker run -p 3000:3000 -p 3001:3001 \
@@ -60,7 +60,7 @@ docker run -p 3000:3000 -p 3001:3001 \
   -e SOCKET_PORT=3001 \
   -e VITE_SOCKET_URL=http://localhost:3001 \
   -e OPENAI_API_KEY=your-api-key \
-  toilex
+  powpdr
 ```
 
 #### 使用 docker-compose（推荐）

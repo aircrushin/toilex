@@ -6,7 +6,7 @@ import { Breadcrumbs } from "../components/Breadcrumbs";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "🚽 Toilex - Sign In" },
+    { title: "🚽 powpdr - Sign In" },
     { name: "description", content: "Sign in to track your bathroom adventures!" },
   ];
 }
@@ -65,7 +65,7 @@ export default function Auth() {
           <div className="text-center mb-8">
             <div className="text-7xl mb-4">🚽</div>
             <h1 className="text-4xl font-black text-yellow-200 mb-2">
-              {isSignUp ? "Join Toilex" : "Welcome Back"}
+              {isSignUp ? "Join powpdr" : "Welcome Back"}
             </h1>
             <p className="text-yellow-100">
               {isSignUp ? "Start tracking your bathroom adventures!" : "Sign in to continue"}
