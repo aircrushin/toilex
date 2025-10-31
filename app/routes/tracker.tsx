@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import type { Route } from "./+types/tracker";
 import { TheNothing } from "../components/TheNothing";
 import { Breadcrumbs } from "../components/Breadcrumbs";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase.client";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -26,7 +28,16 @@ interface PredictionResult {
   funnyQuote: string;
 }
 
+interface LeaderboardEntry {
+  username: string;
+  totalSessions: number;
+  totalTime: number;
+  avgDuration: number;
+  rank: number;
+}
+
 export default function Tracker() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<ToiletSession[]>([]);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
@@ -35,26 +46,55 @@ export default function Tracker() {
   const [notes, setNotes] = useState("");
   const [showStats, setShowStats] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load sessions from localStorage
+  // Load sessions from Supabase or localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("powpdr-sessions");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setSessions(parsed.map((s: any) => ({
-        ...s,
-        startTime: new Date(s.startTime),
-        endTime: new Date(s.endTime),
-      })));
-    }
-  }, []);
+    const loadSessions = async () => {
+      if (user) {
+        // Load from Supabase for authenticated users
+        const { data, error } = await supabase
+          .from('toilet_sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('start_time', { ascending: false });
 
-  // Save sessions to localStorage
+        if (data && !error) {
+          setSessions(data.map((s: any) => ({
+            id: s.id,
+            startTime: new Date(s.start_time),
+            endTime: new Date(s.end_time),
+            duration: s.duration,
+            type: s.type,
+            notes: s.notes,
+          })));
+        }
+      } else {
+        // Load from localStorage for non-authenticated users
+        const stored = localStorage.getItem("powpdr-sessions");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setSessions(parsed.map((s: any) => ({
+            ...s,
+            startTime: new Date(s.startTime),
+            endTime: new Date(s.endTime),
+          })));
+        }
+      }
+      setLoading(false);
+    };
+
+    loadSessions();
+  }, [user]);
+
+  // Save sessions to localStorage for non-authenticated users
   useEffect(() => {
-    if (sessions.length > 0) {
+    if (!user && sessions.length > 0) {
       localStorage.setItem("powpdr-sessions", JSON.stringify(sessions));
     }
-  }, [sessions]);
+  }, [sessions, user]);
 
   // Timer for active session
   useEffect(() => {
@@ -80,21 +120,50 @@ export default function Tracker() {
     endSession();
   };
 
-  const endSession = () => {
+  const endSession = async () => {
     if (sessionStartTime) {
       const endTime = new Date();
       const duration = Math.floor((endTime.getTime() - sessionStartTime.getTime()) / 1000);
 
-      const newSession: ToiletSession = {
-        id: Date.now().toString(),
-        startTime: sessionStartTime,
-        endTime,
-        duration,
-        type: sessionType,
-        notes: notes.trim() || undefined,
-      };
+      if (user) {
+        // Save to Supabase for authenticated users
+        const { data, error } = await supabase
+          .from('toilet_sessions')
+          .insert({
+            user_id: user.id,
+            start_time: sessionStartTime.toISOString(),
+            end_time: endTime.toISOString(),
+            duration,
+            type: sessionType,
+            notes: notes.trim() || null,
+          })
+          .select()
+          .single();
 
-      setSessions([newSession, ...sessions]);
+        if (data && !error) {
+          const newSession: ToiletSession = {
+            id: data.id,
+            startTime: new Date(data.start_time),
+            endTime: new Date(data.end_time),
+            duration: data.duration,
+            type: data.type,
+            notes: data.notes,
+          };
+          setSessions([newSession, ...sessions]);
+        }
+      } else {
+        // Save to localStorage for non-authenticated users
+        const newSession: ToiletSession = {
+          id: Date.now().toString(),
+          startTime: sessionStartTime,
+          endTime,
+          duration,
+          type: sessionType,
+          notes: notes.trim() || undefined,
+        };
+        setSessions([newSession, ...sessions]);
+      }
+
       setIsSessionActive(false);
       setSessionStartTime(null);
       setElapsedTime(0);
@@ -235,16 +304,88 @@ export default function Tracker() {
   const stats = calculateStats();
   const prediction = sessions.length > 0 ? generatePrediction() : null;
 
-  const deleteSession = (id: string) => {
+  const deleteSession = async (id: string) => {
+    if (user) {
+      // Delete from Supabase
+      await supabase
+        .from('toilet_sessions')
+        .delete()
+        .eq('id', id);
+    }
     setSessions(sessions.filter(s => s.id !== id));
   };
 
-  const clearAllSessions = () => {
+  const clearAllSessions = async () => {
     if (confirm("Delete all your precious poop data? This cannot be undone!")) {
+      if (user) {
+        // Delete from Supabase
+        await supabase
+          .from('toilet_sessions')
+          .delete()
+          .eq('user_id', user.id);
+      } else {
+        localStorage.removeItem("powpdr-sessions");
+      }
       setSessions([]);
-      localStorage.removeItem("powpdr-sessions");
     }
   };
+
+  // Load leaderboard
+  const loadLeaderboard = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase.rpc('get_leaderboard', {});
+
+    if (!data || error) {
+      // Fallback: Calculate leaderboard from sessions
+      const { data: allSessions } = await supabase
+        .from('toilet_sessions')
+        .select('user_id, duration, profiles(username)');
+
+      if (allSessions) {
+        const userStats: Record<string, { username: string; totalSessions: number; totalTime: number }> = {};
+
+        allSessions.forEach((session: any) => {
+          const userId = session.user_id;
+          const username = session.profiles?.username || 'Anonymous';
+
+          if (!userStats[userId]) {
+            userStats[userId] = {
+              username,
+              totalSessions: 0,
+              totalTime: 0,
+            };
+          }
+
+          userStats[userId].totalSessions += 1;
+          userStats[userId].totalTime += session.duration;
+        });
+
+        const leaderboardData = Object.values(userStats)
+          .map((stats) => ({
+            username: stats.username,
+            totalSessions: stats.totalSessions,
+            totalTime: stats.totalTime,
+            avgDuration: Math.floor(stats.totalTime / stats.totalSessions),
+            rank: 0,
+          }))
+          .sort((a, b) => b.totalSessions - a.totalSessions)
+          .slice(0, 10)
+          .map((entry, index) => ({
+            ...entry,
+            rank: index + 1,
+          }));
+
+        setLeaderboard(leaderboardData);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (user && showLeaderboard) {
+      loadLeaderboard();
+    }
+  }, [user, showLeaderboard]);
 
   // If game is active, show THE NOTHING
   if (isGameActive) {
@@ -269,6 +410,26 @@ export default function Tracker() {
             Advanced ML-Powered Bowel Movement Forecasting™
           </p>
         </div>
+
+        {!user && (
+          <div className="mb-6 bg-gradient-to-r from-blue-800 to-indigo-800 rounded-lg shadow-xl p-4 border-3 border-blue-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">ℹ️</span>
+                <div>
+                  <p className="text-blue-100 font-bold">Not signed in</p>
+                  <p className="text-blue-200 text-sm">Sign in to sync your data across devices and compete on the leaderboard!</p>
+                </div>
+              </div>
+              <a
+                href="/auth"
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition-all"
+              >
+                Sign In
+              </a>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
           {/* Session Logger */}
@@ -486,6 +647,62 @@ export default function Tracker() {
                      stats.totalSessions > 5 ? "REGULAR" : "NEWBIE"}
                   </p>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Leaderboard */}
+        {user && (
+          <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-lg shadow-2xl p-8 border-4 border-purple-600 mb-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-3xl font-black text-purple-100">
+                🏆 Global Throne Leaderboard
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowLeaderboard(!showLeaderboard)}
+                className="bg-purple-700 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-all"
+              >
+                {showLeaderboard ? "Hide Leaderboard" : "Show Leaderboard"}
+              </button>
+            </div>
+
+            {showLeaderboard && (
+              <div className="space-y-3">
+                {leaderboard.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-6xl mb-4">🚽</div>
+                    <p className="text-purple-200 font-semibold">
+                      No leaderboard data yet! Be the first to log sessions!
+                    </p>
+                  </div>
+                ) : (
+                  leaderboard.map((entry) => (
+                    <div
+                      key={entry.username}
+                      className="bg-purple-800/50 rounded-lg p-4 border-2 border-purple-500 flex items-center justify-between hover:bg-purple-800/70 transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="text-3xl font-black text-purple-300 min-w-[3rem]">
+                          {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
+                        </div>
+                        <div>
+                          <p className="text-xl font-bold text-purple-100">{entry.username}</p>
+                          <p className="text-sm text-purple-300">
+                            {entry.totalSessions} sessions · {Math.floor(entry.totalTime / 60)}m total
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-black text-purple-200">
+                          {formatDuration(entry.avgDuration)}
+                        </p>
+                        <p className="text-xs text-purple-300">avg duration</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>

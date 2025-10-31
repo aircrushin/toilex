@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase.client";
 
 interface TheNothingProps {
   onEndGame: () => void;
@@ -13,6 +15,7 @@ interface LeaderboardEntry {
 }
 
 export function TheNothing({ onEndGame, sessionDuration }: TheNothingProps) {
+  const { user, session } = useAuth();
   const [personalScore, setPersonalScore] = useState(0);
   const [globalScore, setGlobalScore] = useState(0);
   const [buttonPosition, setButtonPosition] = useState({ x: 50, y: 50 });
@@ -22,8 +25,9 @@ export function TheNothing({ onEndGame, sessionDuration }: TheNothingProps) {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const userId = useRef(`user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`);
-  const username = useRef(`Player-${Math.floor(Math.random() * 9999)}`);
+  
+  // Get username from user metadata or generate a default
+  const username = user?.user_metadata?.username || user?.email?.split('@')[0] || `Player-${user?.id?.slice(0, 8)}`;
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -31,14 +35,15 @@ export function TheNothing({ onEndGame, sessionDuration }: TheNothingProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Fetch initial leaderboard
-  useEffect(() => {
-    fetchLeaderboard();
-  }, []);
-
   const fetchLeaderboard = async () => {
+    if (!session) return;
+    
     try {
-      const response = await fetch("/api/game/leaderboard");
+      const response = await fetch("/api/game/leaderboard", {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       const data = await response.json();
       setLeaderboard(data.leaderboard);
       setGlobalScore(data.globalScore);
@@ -46,6 +51,14 @@ export function TheNothing({ onEndGame, sessionDuration }: TheNothingProps) {
       console.error("Failed to fetch leaderboard:", error);
     }
   };
+
+  // Fetch initial leaderboard
+  useEffect(() => {
+    if (session) {
+      fetchLeaderboard();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   const moveButton = () => {
     if (!containerRef.current) return;
@@ -61,18 +74,31 @@ export function TheNothing({ onEndGame, sessionDuration }: TheNothingProps) {
   };
 
   const handleButtonClick = async () => {
+    if (!user || !session) {
+      console.error("User not authenticated");
+      return;
+    }
+
     try {
-      // Send score to backend
+      // Send score to backend with auth token
       const formData = new FormData();
-      formData.append("userId", userId.current);
-      formData.append("username", username.current);
+      formData.append("username", username);
 
       const response = await fetch("/api/game/click", {
         method: "POST",
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: formData
       });
 
       const data = await response.json();
+      
+      if (data.error) {
+        console.error("Error from server:", data.error);
+        return;
+      }
+      
       setPersonalScore(data.personalScore);
       setGlobalScore(data.globalScore);
 
@@ -112,6 +138,24 @@ export function TheNothing({ onEndGame, sessionDuration }: TheNothingProps) {
       moveButton();
     }
   };
+
+  // Show auth required message if not authenticated
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="text-center p-8 bg-gray-900 border-2 border-red-600 rounded-lg">
+          <h2 className="text-3xl font-black text-red-400 mb-4">Authentication Required</h2>
+          <p className="text-gray-300 mb-4">You must be signed in to play THE NOTHING</p>
+          <button
+            onClick={onEndGame}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="relative w-full h-screen bg-black overflow-hidden">
