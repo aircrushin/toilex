@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Route } from "./+types/tracker";
+import { TheNothing } from "../components/TheNothing";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -32,6 +33,7 @@ export default function Tracker() {
   const [sessionType, setSessionType] = useState<"number1" | "number2" | "both">("number2");
   const [notes, setNotes] = useState("");
   const [showStats, setShowStats] = useState(false);
+  const [isGameActive, setIsGameActive] = useState(false);
 
   // Load sessions from localStorage
   useEffect(() => {
@@ -68,6 +70,13 @@ export default function Tracker() {
     setSessionStartTime(new Date());
     setIsSessionActive(true);
     setElapsedTime(0);
+    setIsGameActive(true);
+  };
+
+  const endGame = () => {
+    setIsGameActive(false);
+    // Call endSession to save the toilet session
+    endSession();
   };
 
   const endSession = () => {
@@ -178,7 +187,7 @@ export default function Tracker() {
     }
 
     // Calculate "confidence" based on consistency
-    const intervalVariance = intervals => {
+    const intervalVariance = (intervals: number[]) => {
       if (intervals.length < 2) return 0;
       const mean = intervals.reduce((a: number, b: number) => a + b, 0) / intervals.length;
       const variance = intervals.reduce((acc: number, val: number) => acc + Math.pow(val - mean, 2), 0) / intervals.length;
@@ -235,6 +244,11 @@ export default function Tracker() {
       localStorage.removeItem("toilex-sessions");
     }
   };
+
+  // If game is active, show THE NOTHING
+  if (isGameActive) {
+    return <TheNothing onEndGame={endGame} sessionDuration={elapsedTime} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-800 to-yellow-700 p-4">

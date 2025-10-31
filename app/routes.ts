@@ -11,4 +11,8 @@ export default [
   route("api/chat/poll", "routes/api.chat.poll.ts"),
   route("api/chat/send", "routes/api.chat.send.ts"),
   route("api/chat/end", "routes/api.chat.end.ts"),
+
+  // API routes for THE NOTHING game
+  route("api/game/click", "routes/api.game.click.ts"),
+  route("api/game/leaderboard", "routes/api.game.leaderboard.ts"),
 ] satisfies RouteConfig;
