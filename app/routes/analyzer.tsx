@@ -59,6 +59,62 @@ export async function action({ request }: Route.ActionArgs) {
     const base64Data = imageData.split(",")[1];
     const mediaType = imageData.split(";")[0].split(":")[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
+    // Step 1: Verify if the image is actually poop
+    const verificationResponse = await openai.chat.completions.create({
+      model: "x-ai/grok-4-fast",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mediaType};base64,${base64Data}`,
+              },
+            },
+            {
+              type: "text",
+              text: `Look at this image carefully. Is this actually human feces/poop/stool?
+
+Respond in JSON format:
+{
+  "isPoop": true or false,
+  "whatIsIt": "brief description of what you actually see if not poop",
+  "funnyRejection": "a hilarious rejection message if not poop"
+}
+
+Be brutally honest and funny!`
+            }
+          ],
+        },
+      ],
+    });
+
+    const verificationContent = verificationResponse.choices[0]?.message?.content;
+    if (verificationContent) {
+      const verification = JSON.parse(verificationContent);
+
+      // If it's not poop, return a funny rejection
+      if (!verification.isPoop) {
+        const funnyRejections = [
+          `Nice try, but that's ${verification.whatIsIt || 'definitely not poop'}! 💩❌`,
+          `Bruh, that's ${verification.whatIsIt || 'not even close to poop'}! Did you think I was born yesterday? 🤨`,
+          `That's ${verification.whatIsIt || 'clearly not a turd'}! This is a POOP analyzer, not a ${verification.whatIsIt || 'random stuff'} analyzer! 😤`,
+          `Sir/Madam, that appears to be ${verification.whatIsIt || 'something that did NOT come out of a human'}. Please submit actual poop or GTFO! 🚪`,
+          `I'm a professional turd rater, not a ${verification.whatIsIt || 'amateur photo analyzer'}! Show me the REAL DEAL! 💩`,
+        ];
+
+        const customMessage = verification.funnyRejection || funnyRejections[Math.floor(Math.random() * funnyRejections.length)];
+
+        return {
+          notPoop: true,
+          message: customMessage,
+          whatIsIt: verification.whatIsIt
+        };
+      }
+    }
+
+    // Step 2: If it IS poop, proceed with full analysis
     const response = await openai.chat.completions.create({
       model: "x-ai/grok-4-fast",
       messages: [
@@ -226,6 +282,49 @@ export default function Analyzer() {
           {actionData?.error && (
             <div className="mt-6 p-4 bg-red-800 border-4 border-red-600 text-red-100 rounded-lg font-bold text-center">
               💀 {actionData.error} 💀
+            </div>
+          )}
+
+          {actionData?.notPoop && (
+            <div className="mt-8 space-y-6">
+              <div className="bg-gradient-to-r from-red-700 via-orange-700 to-red-700 rounded-lg shadow-2xl p-8 border-4 border-red-500 animate-pulse">
+                <div className="text-center">
+                  <div className="text-8xl mb-4">🚫💩</div>
+                  <h2 className="text-4xl font-black text-white mb-4">
+                    FRAUD DETECTED!
+                  </h2>
+                  <div className="bg-red-900/50 rounded-lg p-6 border-3 border-red-400 mb-4">
+                    <p className="text-2xl font-black text-yellow-300 mb-3">
+                      {actionData.message}
+                    </p>
+                    {actionData.whatIsIt && (
+                      <p className="text-lg text-red-100 font-semibold">
+                        What I actually see: <span className="text-yellow-200">{actionData.whatIsIt}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-xl text-red-100 font-bold">
+                      ⚠️ THIS IS A TURD ANALYZER, NOT A JOKE! ⚠️
+                    </p>
+                    <p className="text-lg text-red-200 font-semibold">
+                      Please upload an actual photo of poop if you want a legitimate analysis.
+                      <br />
+                      We have standards here! 💩👑
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setImagePreview("");
+                      setImageData("");
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="mt-6 bg-gradient-to-r from-yellow-600 to-amber-700 hover:from-yellow-500 hover:to-amber-600 text-white font-black py-4 px-8 rounded-lg transition-all border-4 border-yellow-500 transform hover:scale-105 text-xl"
+                  >
+                    💩 TRY AGAIN WITH REAL POOP 💩
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
