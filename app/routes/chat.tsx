@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { io, Socket } from "socket.io-client";
 import type { Route } from "./+types/chat";
 
 export function meta({}: Route.MetaArgs) {
@@ -18,12 +17,13 @@ interface Message {
 }
 
 export default function Chat() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [userId] = useState(() => `user-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`);
   const [chatState, setChatState] = useState<ChatState>("idle");
   const [roomId, setRoomId] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -33,64 +33,81 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
+  // Polling for updates
   useEffect(() => {
-    // Initialize socket connection
-    // Use environment variable or fall back to localhost for development
-    const socketUrl = typeof window !== 'undefined'
-      ? (window.ENV?.SOCKET_URL || import.meta.env.VITE_SOCKET_URL || "http://localhost:3001")
-      : "http://localhost:3001";
+    if (chatState === "idle") {
+      return;
+    }
 
-    const newSocket = io(socketUrl);
-    setSocket(newSocket);
+    const poll = async () => {
+      try {
+        const params = new URLSearchParams({ userId });
+        if (roomId) {
+          params.append("roomId", roomId);
+        }
 
-    // Listen for matching events
-    newSocket.on("waiting", () => {
-      setChatState("waiting");
-    });
+        const response = await fetch(`/api/chat/poll?${params}`);
+        const data = await response.json();
 
-    newSocket.on("matched", ({ roomId }: { roomId: string }) => {
-      setRoomId(roomId);
-      setChatState("matched");
-      setMessages([]);
-    });
+        if (data.status === "matched" && chatState !== "matched") {
+          setRoomId(data.roomId);
+          setChatState("matched");
+          setMessages([]);
+        }
 
-    newSocket.on("receive-message", ({ message }: { message: string }) => {
-      setMessages((prev) => [
-        ...prev,
-        { text: message, sender: "them", timestamp: new Date() },
-      ]);
-    });
+        if (data.messages && Array.isArray(data.messages)) {
+          data.messages.forEach((msg: any) => {
+            if (msg.userId !== userId) {
+              setMessages((prev) => [
+                ...prev,
+                { text: msg.text, sender: "them", timestamp: new Date(msg.timestamp) },
+              ]);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
+    };
 
-    newSocket.on("partner-left", () => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "Your chat partner has left the session.",
-          sender: "them",
-          timestamp: new Date(),
-        },
-      ]);
-      setTimeout(() => {
-        setChatState("idle");
-        setRoomId("");
-        setMessages([]);
-      }, 2000);
-    });
+    // Poll immediately, then every 1 second
+    poll();
+    pollingIntervalRef.current = setInterval(poll, 1000);
 
     return () => {
-      newSocket.close();
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
     };
-  }, []);
+  }, [chatState, userId, roomId]);
 
-  const startSession = () => {
-    if (socket) {
-      socket.emit("start-session");
+  const startSession = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("userId", userId);
+
+      const response = await fetch("/api/chat/start", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.status === "waiting") {
+        setChatState("waiting");
+      } else if (data.status === "matched") {
+        setRoomId(data.roomId);
+        setChatState("matched");
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Error starting session:", error);
     }
   };
 
-  const sendMessage = (e: React.FormEvent) => {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || !socket || !roomId) return;
+    if (!inputMessage.trim() || !roomId) return;
 
     const message: Message = {
       text: inputMessage,
@@ -99,14 +116,40 @@ export default function Chat() {
     };
 
     setMessages((prev) => [...prev, message]);
-    socket.emit("send-message", { roomId, message: inputMessage });
-    setInputMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("userId", userId);
+      formData.append("roomId", roomId);
+      formData.append("message", inputMessage);
+
+      await fetch("/api/chat/send", {
+        method: "POST",
+        body: formData,
+      });
+
+      setInputMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   };
 
-  const endSession = () => {
-    if (socket && roomId) {
-      socket.emit("end-session", { roomId });
+  const endSession = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("userId", userId);
+      if (roomId) {
+        formData.append("roomId", roomId);
+      }
+
+      await fetch("/api/chat/end", {
+        method: "POST",
+        body: formData,
+      });
+    } catch (error) {
+      console.error("Error ending session:", error);
     }
+
     setChatState("idle");
     setRoomId("");
     setMessages([]);
@@ -122,6 +165,9 @@ export default function Chat() {
           </h1>
           <p className="text-yellow-100 font-bold text-lg">
             💩 Anonymous Toilet Talk Worldwide 💩
+          </p>
+          <p className="text-yellow-200 text-sm mt-1 font-semibold">
+            100% Serverless Edition
           </p>
         </div>
 
@@ -160,6 +206,12 @@ export default function Chat() {
                   <div className="w-5 h-5 bg-yellow-400 rounded-full animate-pulse delay-150"></div>
                 </div>
               </div>
+              <button
+                onClick={endSession}
+                className="mt-8 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg transition-all"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
@@ -226,6 +278,15 @@ export default function Chat() {
               </form>
             </div>
           )}
+        </div>
+
+        <div className="mt-8 text-center">
+          <a
+            href="/"
+            className="text-yellow-200 hover:text-yellow-100 underline font-bold text-lg"
+          >
+            🚽 ← Back to Toilet HQ
+          </a>
         </div>
       </div>
     </div>
