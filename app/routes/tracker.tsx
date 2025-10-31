@@ -29,15 +29,22 @@ interface PredictionResult {
 }
 
 interface LeaderboardEntry {
+  userId: string;
   username: string;
-  totalSessions: number;
-  totalTime: number;
-  avgDuration: number;
+  score: number;
+  lastUpdated: number;
   rank: number;
 }
 
+type ApiLeaderboardEntry = {
+  userId: string;
+  username: string;
+  score: number;
+  lastUpdated: number;
+};
+
 export default function Tracker() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [sessions, setSessions] = useState<ToiletSession[]>([]);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
@@ -175,6 +182,35 @@ export default function Tracker() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimeAgo = (timestamp: number) => {
+    if (!timestamp) return "unknown";
+
+    const diffMs = Date.now() - timestamp;
+    if (Number.isNaN(diffMs)) return "unknown";
+
+    const diffSeconds = Math.floor(diffMs / 1000);
+    if (diffSeconds < 5) return "just now";
+    if (diffSeconds < 60) return `${diffSeconds}s ago`;
+
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    const diffWeeks = Math.floor(diffDays / 7);
+    if (diffWeeks < 4) return `${diffWeeks}w ago`;
+
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths < 12) return `${diffMonths}mo ago`;
+
+    const diffYears = Math.floor(diffDays / 365);
+    return `${diffYears}y ago`;
   };
 
   const formatDateTime = (date: Date) => {
@@ -332,60 +368,41 @@ export default function Tracker() {
 
   // Load leaderboard
   const loadLeaderboard = async () => {
-    if (!user) return;
+    if (!user || !session) return;
 
-    const { data, error } = await supabase.rpc('get_leaderboard', {});
+    try {
+      const response = await fetch("/api/game/leaderboard", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-    if (!data || error) {
-      // Fallback: Calculate leaderboard from sessions
-      const { data: allSessions } = await supabase
-        .from('toilet_sessions')
-        .select('user_id, duration, profiles(username)');
-
-      if (allSessions) {
-        const userStats: Record<string, { username: string; totalSessions: number; totalTime: number }> = {};
-
-        allSessions.forEach((session: any) => {
-          const userId = session.user_id;
-          const username = session.profiles?.username || 'Anonymous';
-
-          if (!userStats[userId]) {
-            userStats[userId] = {
-              username,
-              totalSessions: 0,
-              totalTime: 0,
-            };
-          }
-
-          userStats[userId].totalSessions += 1;
-          userStats[userId].totalTime += session.duration;
-        });
-
-        const leaderboardData = Object.values(userStats)
-          .map((stats) => ({
-            username: stats.username,
-            totalSessions: stats.totalSessions,
-            totalTime: stats.totalTime,
-            avgDuration: Math.floor(stats.totalTime / stats.totalSessions),
-            rank: 0,
-          }))
-          .sort((a, b) => b.totalSessions - a.totalSessions)
-          .slice(0, 10)
-          .map((entry, index) => ({
-            ...entry,
-            rank: index + 1,
-          }));
-
-        setLeaderboard(leaderboardData);
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to fetch leaderboard");
       }
+
+      const payload = await response.json() as { leaderboard?: ApiLeaderboardEntry[] };
+      const gameLeaderboard = (payload.leaderboard ?? []).map((entry, index) => ({
+        userId: entry.userId,
+        username: entry.username,
+        score: entry.score,
+        lastUpdated: entry.lastUpdated,
+        rank: index + 1,
+      }));
+
+      setLeaderboard(gameLeaderboard);
+    } catch (error) {
+      console.error("Failed to load leaderboard:", error);
+      setLeaderboard([]);
     }
   };
 
   useEffect(() => {
-    if (user && showLeaderboard) {
+    if (user && session && showLeaderboard) {
       loadLeaderboard();
     }
-  }, [user, showLeaderboard]);
+  }, [user, session, showLeaderboard]);
 
   // If game is active, show THE NOTHING
   if (isGameActive) {
@@ -674,13 +691,13 @@ export default function Tracker() {
                   <div className="text-center py-8">
                     <div className="text-6xl mb-4">🚽</div>
                     <p className="text-purple-200 font-semibold">
-                      No leaderboard data yet! Be the first to log sessions!
+                      No leaderboard data yet! Be the first to claim the throne!
                     </p>
                   </div>
                 ) : (
                   leaderboard.map((entry) => (
                     <div
-                      key={entry.username}
+                      key={entry.userId}
                       className="bg-purple-800/50 rounded-lg p-4 border-2 border-purple-500 flex items-center justify-between hover:bg-purple-800/70 transition-all"
                     >
                       <div className="flex items-center gap-4">
@@ -690,15 +707,15 @@ export default function Tracker() {
                         <div>
                           <p className="text-xl font-bold text-purple-100">{entry.username}</p>
                           <p className="text-sm text-purple-300">
-                            {entry.totalSessions} sessions · {Math.floor(entry.totalTime / 60)}m total
+                            Updated {formatTimeAgo(entry.lastUpdated)}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-black text-purple-200">
-                          {formatDuration(entry.avgDuration)}
+                          {entry.score}
                         </p>
-                        <p className="text-xs text-purple-300">avg duration</p>
+                        <p className="text-xs text-purple-300">score</p>
                       </div>
                     </div>
                   ))
