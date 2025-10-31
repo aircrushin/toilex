@@ -46,16 +46,45 @@ npm run build
 
 ### Docker Deployment
 
-To build and run using Docker:
+**注意**: Docker 部署会自动同时运行 React Router 应用和 Socket.IO 服务器。
+
+#### 构建和运行
 
 ```bash
-docker build -t my-app .
+# 构建镜像
+docker build -t toilex .
 
-# Run the container
-docker run -p 3000:3000 my-app
+# 运行容器（需要映射两个端口）
+docker run -p 3000:3000 -p 3001:3001 \
+  -e PORT=3000 \
+  -e SOCKET_PORT=3001 \
+  -e VITE_SOCKET_URL=http://localhost:3001 \
+  -e OPENAI_API_KEY=your-api-key \
+  toilex
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+#### 使用 docker-compose（推荐）
+
+```bash
+# 复制示例文件并修改环境变量
+cp docker-compose.example.yml docker-compose.yml
+# 编辑 docker-compose.yml，设置你的 OPENAI_API_KEY
+
+# 启动服务
+docker-compose up -d
+```
+
+#### 环境变量说明
+
+- `PORT` - React Router 应用端口（默认: 3000）
+- `SOCKET_PORT` - Socket.IO 服务器端口（默认: PORT + 1，即 3001）
+- `VITE_SOCKET_URL` - Socket.IO 服务器 URL（前端连接使用）
+- `OPENAI_API_KEY` - OpenAI API 密钥（用于 Turd Analyzer 功能）
+- `OPENAI_BASE_URL` - （可选）自定义 OpenAI 端点
+
+#### 支持的部署平台
+
+容器化应用可以部署到任何支持 Docker 的平台，包括：
 
 - AWS ECS
 - Google Cloud Run
@@ -63,6 +92,7 @@ The containerized application can be deployed to any platform that supports Dock
 - Digital Ocean App Platform
 - Fly.io
 - Railway
+- Render
 
 ### DIY Deployment
 

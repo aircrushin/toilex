@@ -61,7 +61,10 @@ io.on("connection", (socket) => {
   });
 });
 
-const port = process.env.PORT || process.env.SOCKET_PORT || 3001;
+// Prioritize SOCKET_PORT to avoid conflicts with React Router app
+// If PORT is set but SOCKET_PORT is not, use PORT + 1 (e.g., 3000 -> 3001)
+const port = process.env.SOCKET_PORT || 
+  (process.env.PORT ? parseInt(process.env.PORT) + 1 : 3001);
 httpServer.listen(port, () => {
   console.log(`Socket.io server listening on port ${port}`);
 });

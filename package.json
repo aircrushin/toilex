@@ -8,6 +8,7 @@
     "dev:app": "react-router dev",
     "dev:socket": "node socket-server.js",
     "start": "react-router-serve ./build/server/index.js",
+    "start:all": "concurrently \"react-router-serve ./build/server/index.js\" \"node socket-server.js\"",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
